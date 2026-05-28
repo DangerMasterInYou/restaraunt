@@ -9,9 +9,11 @@ from starlette import status
 
 from api.api_v1.auth_jwt.schemas import UserLoginScheme, UserRegisterScheme
 from auth import utils as auth_utils
+from core.db_helper import db_helper
 from core.models import User, Token
 
 
+#
 async def auth_user_validate(
     user_data: UserLoginScheme,
     session: AsyncSession,
@@ -90,6 +92,37 @@ def get_current_token_payload(
 
 
 http_bearer_scheme = HTTPBearer()
+
+
+async def get_current_active_user_id(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer_scheme)],
+    session: AsyncSession = Depends(db_helper.session_getter),
+) -> int:
+    payload = get_current_token_payload(credentials=credentials)
+    user_id_str: str | None = payload.get("sub")
+
+    if user_id_str is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Не удалось определить пользователя по токену.",
+        )
+
+    try:
+        user_id: int = int(user_id_str)
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Некорректный формат ID пользователя в токене.",
+        )
+
+    stmt = select(User).where(User.id == user_id, User.is_active == True)
+    user: User | None = await session.scalar(stmt)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Пользователь неактивен или не существует.",
+        )
+    return user_id
 
 
 def get_current_user_id(

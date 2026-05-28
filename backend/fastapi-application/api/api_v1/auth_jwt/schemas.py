@@ -8,17 +8,19 @@ from pydantic import (
 import re
 from datetime import datetime, date
 
+from core.models.user import UserRole
+
 
 class UserSchema(BaseModel):
     email: EmailStr
     birthday: date | None = None
-    username: str | None = None
-    family_name: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
     phone: str | None = None
 
 
 class UserRead(UserSchema):
-
+    role: UserRole = UserRole.client
     is_active: bool
     created_at: datetime
 

@@ -16,7 +16,6 @@ from core.config import settings
 from api import router as api_router
 from core.db_helper import db_helper
 
-
 STATIC_DIR = "static"
 IMAGES_DIR = os.path.join(STATIC_DIR, "images")
 os.makedirs(IMAGES_DIR, exist_ok=True)
@@ -50,6 +49,11 @@ main_app.add_middleware(
 
 
 @main_app.get("/")
+async def root():
+    return {"message": "Hello, World and FastAPI!"}
+
+
+@main_app.get("/tester")
 async def root():
     return {"message": "Hello, World and FastAPI!"}
 
@@ -187,7 +191,8 @@ async def orders_active_ws(websocket: WebSocket):
     except Exception as e:
         print(f"Ошибка в WebSocket: {str(e)}")
 
-#Start
+
+# Start
 if __name__ == "__main__":
     uvicorn.run(
         app=settings.run.app,

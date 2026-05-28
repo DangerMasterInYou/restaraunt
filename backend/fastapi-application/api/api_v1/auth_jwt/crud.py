@@ -79,8 +79,8 @@ async def user_registration(
             email=user_data.email,
             password=auth_utils.hash_password(user_data.password),
             phone=user_data.phone,
-            username=user_data.username,
-            family_name=user_data.family_name,
+            first_name=user_data.first_name,
+            last_name=user_data.last_name,
             birthday=user_data.birthday,
         )
 
@@ -92,8 +92,8 @@ async def user_registration(
         user_result = UserRead(
             email=user.email,
             birthday=user.birthday,
-            username=user.username,
-            family_name=user.family_name,
+            first_name=user.first_name,
+            last_name=user.last_name,
             phone=user.phone,
             is_active=user.is_active,
             created_at=user.created_at,
@@ -136,8 +136,8 @@ async def get_current_auth_user(
         user_result = UserRead(
             email=user.email,
             birthday=user.birthday,
-            username=user.username,
-            family_name=user.family_name,
+            first_name=user.first_name,
+            last_name=user.last_name,
             phone=user.phone,
             is_active=user.is_active,
             created_at=user.created_at,

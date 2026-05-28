@@ -25,9 +25,16 @@ router = APIRouter(
 )
 # router.include_router(
 #     router=auth_jwt_router,
-#     prefix=settings.api.v1.auth,
-#     tags=["Auth"],
+#     # prefix=settings.api.v1.auth,
+#     tags=["User Auth"],
 # )
+
+
+router.include_router(
+    router=auth_email_router,
+    prefix=settings.api.v1.auth,
+    tags=["Auth Email"],
+)
 
 router.include_router(
     router=load_images_router,
@@ -68,13 +75,6 @@ router.include_router(
     router=new_orders_operator_router,
     # prefix=settings.api.v1.,
     tags=["Operator"],
-)
-
-
-router.include_router(
-    router=auth_email_router,
-    prefix=settings.api.v1.auth,
-    tags=["Auth Email"],
 )
 
 # router.include_router(

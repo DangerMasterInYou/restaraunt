@@ -122,6 +122,7 @@ async def verify_code_and_login(
     jwt_payload = {
         "sub": str(user.id),
         "email": user.email,
+        "role": user.role,
         "jti": str(uuid.uuid4()),
     }
     token: str = auth_utils.encode_jwt(jwt_payload)
@@ -151,5 +152,6 @@ async def verify_code_and_login(
         user=ResponseUserDataScheme(
             id=user.id,
             email=user.email,
+            role=user.role,
         ),
     )

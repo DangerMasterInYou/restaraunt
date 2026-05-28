@@ -1,5 +1,7 @@
 from pydantic import BaseModel, EmailStr
 
+from core.models.user import UserRole
+
 
 class EmailRequestScheme(BaseModel):
     email: EmailStr
@@ -18,6 +20,7 @@ class LoginSchema(BaseModel):
 class ResponseUserDataScheme(BaseModel):
     id: int
     email: EmailStr
+    role: UserRole
 
 
 class ResponseLoginSchema(BaseModel):
