@@ -59,15 +59,14 @@ async def verify_code(
 
 
 class SQLQueryRequest(BaseModel):
-    query: str
+    queries: List[str]  # список запросов вместо одного
     params: Optional[Dict[str, Any]] = None
 
 
 class SQLQueryResponse(BaseModel):
     success: bool
-    data: Optional[List[Dict[str, Any]]] = None
+    results: Optional[List[Dict[str, Any]]] = None  # результаты по каждому запросу
     message: Optional[str] = None
-    rowcount: Optional[int] = None
 
 
 @router.post(
@@ -80,25 +79,23 @@ async def execute_sql_query(
     session: AsyncSession = Depends(db_helper.session_getter),
 ):
     try:
-        # Преобразуем строку в текстовый SQL‑запрос
-        sql_query = text(request.query)
+        results = []
+        for i, query_str in enumerate(request.queries):
+            sql_query = text(query_str)
+            result = await session.execute(sql_query, request.params or {})
 
-        # Выполняем запрос с параметрами
-        result = await session.execute(sql_query, request.params or {})
+            if result.returns_rows:
+                rows = result.mappings().all()
+                data = [dict(row) for row in rows]
+            else:
+                data = None
+
+            results.append(
+                {"query_index": i, "rowcount": result.rowcount, "data": data}
+            )
+
         await session.commit()
-
-        # Обрабатываем результат
-        if result.returns_rows:
-            rows = result.mappings().all()
-            data = [dict(row) for row in rows]
-        else:
-            data = None
-
-        return SQLQueryResponse(
-            success=True,
-            data=data,
-            rowcount=result.rowcount,
-        )
+        return SQLQueryResponse(success=True, results=results)
     except Exception as e:
         await session.rollback()
         raise HTTPException(
