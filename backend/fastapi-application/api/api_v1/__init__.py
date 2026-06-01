@@ -14,10 +14,12 @@ from .auth_email.views import router as auth_email_router
 from .menu.load_images import router as load_images_router
 
 # from .orders.cart import router as orders_cart_router
-from .new_orders.views import router as new_orders_router
+# from .new_orders.views import router as new_orders_router
 
 from .profile.profile import router as profiles_router
-from .new_orders.operator import router as new_orders_operator_router
+from .orders import views as orders_views
+
+# from .new_orders.operator import router as new_orders_operator_router
 
 router = APIRouter(
     # prefix=settings.api.v1.prefix,
@@ -28,6 +30,13 @@ router = APIRouter(
 #     # prefix=settings.api.v1.auth,
 #     tags=["User Auth"],
 # )
+
+# Подключаем клиентские эндпоинты заказов
+router.include_router(orders_views.router)
+# Подключаем операторские эндпоинты заказов
+router.include_router(orders_views.operator_router)
+# Подключаем админские эндпоинты заказов
+router.include_router(orders_views.admin_router)
 
 
 router.include_router(
@@ -64,18 +73,18 @@ router.include_router(
 )
 
 
-router.include_router(
-    router=new_orders_router,
-    # prefix=settings.api.v1.,
-    tags=["Orders"],
-)
+# router.include_router(
+#     router=new_orders_router,
+#     # prefix=settings.api.v1.,
+#     tags=["Orders"],
+# )
 
 
-router.include_router(
-    router=new_orders_operator_router,
-    # prefix=settings.api.v1.,
-    tags=["Operator"],
-)
+# router.include_router(
+#     router=new_orders_operator_router,
+#     # prefix=settings.api.v1.,
+#     tags=["Operator"],
+# )
 
 # router.include_router(
 #     router=orders_cart_router,
