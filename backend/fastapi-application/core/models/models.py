@@ -31,7 +31,6 @@ class Address(IntIdPkMixin, Base):
 
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
 
-    # user: Mapped["User"] = relationship(back_populates="addresses")
 
 
 class Order(IntIdPkMixin, Base):
@@ -47,10 +46,6 @@ class Order(IntIdPkMixin, Base):
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow())
     updated_at: Mapped[datetime] = mapped_column(default=datetime.utcnow())
 
-        # user: Mapped["User"] = relationship(back_populates="orders")
-        # food_details: Mapped[list["OrderFoodAssociation"]] = relationship(
-        #     back_populates="orders"
-        # )
 
 
 
@@ -63,13 +58,11 @@ class OrderFoodAssociation(IntIdPkMixin, Base):
     order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"))
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
 
-        # orders: Mapped["Order"] = relationship(back_populates="food_details")
-        # foods: Mapped["Product"] = relationship(back_populates="order_details")
 
 class Payment(IntIdPkMixin, Base):
     payment_id: Mapped[str] = mapped_column(
         unique=True
-    )  # ID транзакции от платежной системы
+    )
     amount: Mapped[int]
     status: Mapped[str]
     provider: Mapped[str]

@@ -1,5 +1,5 @@
 from typing import Annotated, List
-from fastapi import APIRouter, status, Depends, Path
+from fastapi import APIRouter, status, Depends, Path, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -17,6 +17,15 @@ from core.db_helper import db_helper
 from . import crud
 
 router = APIRouter()
+
+
+@router.post("/products/reorder", status_code=status.HTTP_204_NO_CONTENT)
+async def reorder_products(
+    session: Annotated[AsyncSession, Depends(db_helper.session_getter)],
+    ids: List[int] = Body(..., embed=True),
+):
+    """#FE11: применяет порядок продуктов (drag-сортировка)."""
+    await crud.reorder_products(session, ids)
 
 
 @router.post(
@@ -103,9 +112,6 @@ async def hard_delete_product(
     return await crud.hard_delete_product(product_id=product_id, session=session)
 
 
-# ===================================================================
-# ЭНДПОИНТЫ ДЛЯ УПРАВЛЕНИЯ ВАРИАНТАМИ ПРОДУКТОВ
-# ===================================================================
 
 
 @router.get(

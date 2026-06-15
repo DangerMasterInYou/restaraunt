@@ -32,17 +32,16 @@ async def authorization_user(
 ):
 
     user = await auth_user_validate(user_data, session)
-    # Создание JWT
     jwt_payload = {
-        "sub": user.email,
+        "sub": str(user.id),
         "email": user.email,
+        "role": user.role,
         "jti": str(uuid.uuid4()),
     }
     token = auth_utils.encode_jwt(jwt_payload)
 
     await token_count_check(user, session)
 
-    # сохранение jti токена
     try:
         token_info = Token(
             user_id=user.id,
@@ -74,7 +73,6 @@ async def user_registration(
         session=session,
     )
     try:
-        # создание пользователя
         user = User(
             email=user_data.email,
             password=auth_utils.hash_password(user_data.password),

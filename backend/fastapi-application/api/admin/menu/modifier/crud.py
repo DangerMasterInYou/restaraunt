@@ -4,10 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from fastapi import HTTPException, status
 
-# Импортируем модели, с которыми будем работать
 from core.models import ModifierGroup, Modifier, ProductVariant
 
-# Импортируем схемы для типизации входных данных
 from .schemas import (
     ModifierGroupCreate,
     ModifierGroupUpdate,
@@ -15,13 +13,9 @@ from .schemas import (
     ModifierUpdate,
 )
 
-# Импортируем CRUD-функцию из другого модуля для проверки зависимостей
 from ..product.crud import get_variant
 
 
-# ===================================================================
-# CRUD-ФУНКЦИИ ДЛЯ ГРУПП МОДИФИКАТОРОВ (MODIFIER GROUP)
-# ===================================================================
 
 
 async def get_modifier_group(session: AsyncSession, group_id: int) -> ModifierGroup:
@@ -33,7 +27,7 @@ async def get_modifier_group(session: AsyncSession, group_id: int) -> ModifierGr
         group_id,
         options=[
             selectinload(ModifierGroup.modifiers)
-        ],  # Эффективно загружаем связанные опции
+        ],
     )
     if not group:
         raise HTTPException(
@@ -71,21 +65,14 @@ async def create_modifier_group(
     try:
         await check_for_existing_group_name(session, group_data.name)
 
-        # Создаем родительскую группу
         group_dict = group_data.model_dump(exclude={"modifiers"})
         new_group = ModifierGroup(**group_dict)
         session.add(new_group)
-        # await session.flush()  # Отправляем запрос в БД, чтобы получить ID для new_group
-        #
-        # # Создаем дочерние опции (модификаторы)
-        # for modifier_data in group_data.modifiers:
-        #     new_modifier = Modifier(group_id=new_group.id, **modifier_data.model_dump())
-        #     session.add(new_modifier)
 
         await session.commit()
         await session.refresh(
             new_group, ["modifiers"]
-        )  # Обновляем объект, чтобы он содержал созданные опции
+        )
         return new_group
     except HTTPException:
         await session.rollback()
@@ -186,9 +173,6 @@ async def hard_delete_modifier_group(group_id: int, session: AsyncSession):
         raise HTTPException(status_code=500, detail=f"Внутренняя ошибка: {e}")
 
 
-# ===================================================================
-# CRUD-ФУНКЦИИ ДЛЯ ОТДЕЛЬНЫХ МОДИФИКАТОРОВ (MODIFIER)
-# ===================================================================
 
 
 async def get_all_modifiers(session: AsyncSession) -> List[Modifier]:
@@ -270,7 +254,6 @@ async def update_modifier(
 
         update_data = modifier_update.model_dump(exclude_unset=True)
 
-        # Если имя меняется, проверяем его на уникальность внутри той же группы
         if "name" in update_data:
             await check_for_existing_modifier_name(
                 session=session,
@@ -344,9 +327,6 @@ async def hard_delete_modifier(modifier_id: int, session: AsyncSession):
         )
 
 
-# ===================================================================
-# ФУНКЦИИ ДЛЯ УПРАВЛЕНИЯ СВЯЗЯМИ (ASSOCIATIONS)
-# ===================================================================
 
 
 async def link_group_to_variant(variant_id: int, group_id: int, session: AsyncSession):
@@ -354,7 +334,7 @@ async def link_group_to_variant(variant_id: int, group_id: int, session: AsyncSe
     try:
         variant = await get_variant(
             session, variant_id
-        )  # Используем CRUD из модуля продукта
+        )
         group = await get_modifier_group(session, group_id)
 
         if group.is_deleted:
@@ -385,12 +365,70 @@ async def link_group_to_variant(variant_id: int, group_id: int, session: AsyncSe
         )
 
 
+async def _product_variants(product_id: int, session: AsyncSession):
+    result = await session.scalars(
+        select(ProductVariant)
+        .where(ProductVariant.product_id == product_id)
+        .options(selectinload(ProductVariant.modifier_groups))
+    )
+    return list(result.all())
+
+
+async def link_group_to_product(product_id: int, group_id: int, session: AsyncSession):
+    """Применяет группу модификаторов ко ВСЕМ вариантам продукта (#FE14)."""
+    try:
+        group = await get_modifier_group(session, group_id)
+        if group.is_deleted:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST, "Нельзя применить удаленную группу."
+            )
+        variants = await _product_variants(product_id, session)
+        if not variants:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, "У продукта нет вариантов."
+            )
+        for variant in variants:
+            if group not in variant.modifier_groups:
+                variant.modifier_groups.append(group)
+        await session.commit()
+        return {"success": True, "message": "Группа применена ко всем вариантам."}
+    except HTTPException:
+        await session.rollback()
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Ошибка привязки группы: {e}"
+        )
+
+
+async def unlink_group_from_product(
+    product_id: int, group_id: int, session: AsyncSession
+):
+    """Убирает группу модификаторов у ВСЕХ вариантов продукта (#FE14)."""
+    try:
+        group = await get_modifier_group(session, group_id)
+        variants = await _product_variants(product_id, session)
+        for variant in variants:
+            if group in variant.modifier_groups:
+                variant.modifier_groups.remove(group)
+        await session.commit()
+        return {"success": True, "message": "Группа убрана у всех вариантов."}
+    except HTTPException:
+        await session.rollback()
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Ошибка отвязки группы: {e}"
+        )
+
+
 async def unlink_group_from_variant(
     variant_id: int, group_id: int, session: AsyncSession
 ):
     """Убирает (отвязывает) группу модификаторов у варианта продукта."""
     try:
-        # Загружаем вариант вместе с его группами, чтобы избежать доп. запросов
         variant = await session.get(
             ProductVariant,
             variant_id,
@@ -403,7 +441,7 @@ async def unlink_group_from_variant(
 
         group = await get_modifier_group(
             session, group_id
-        )  # Проверяем, что группа существует
+        )
 
         if group not in variant.modifier_groups:
             raise HTTPException(

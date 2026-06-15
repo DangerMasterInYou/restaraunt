@@ -9,4 +9,3 @@ class SoftDeleteMixin:
     is_deleted: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="false", index=True
     )
-    # deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

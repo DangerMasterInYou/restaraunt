@@ -52,10 +52,9 @@ class UserRegisterScheme(UserSchema):
     password: str
     c_password: str
 
-    # Валидация пароля
     @field_validator("password")
     def validate_password(cls, v: str) -> str:
-        if len(v) < 8:  # минимум 8 символов
+        if len(v) < 8:
             raise ValueError("Пароль должен содержать не менее 8 символов.")
         if not re.search(r"\d", v):
             raise ValueError("Содержит не менее 1 цифры.")
@@ -67,7 +66,6 @@ class UserRegisterScheme(UserSchema):
             raise ValueError("Содержит не менее чем по 1 символу в нижнем регистре.")
         return v
 
-    # Проверка совпадения паролей
     @model_validator(mode="after")
     def check_passwords_match(self):
         if self.password != self.c_password:

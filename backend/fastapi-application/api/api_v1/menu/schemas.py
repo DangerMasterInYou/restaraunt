@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, ConfigDict
 
 
@@ -12,22 +14,19 @@ class ProductScheme(BaseModel):
     stock: int
     is_available: bool
     category: str
-    # created_at: str
-    # updated_at: str
 
 
-# в файле schemas.py
 
 from pydantic import BaseModel
 from typing import List, Optional
 
 
-# Эти схемы описывают вложенные данные для модификаторов
 class ModifierSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
     price_delta: int
+    image_url: Optional[str] = None
 
 
 class ModifierGroupSchema(BaseModel):
@@ -39,13 +38,13 @@ class ModifierGroupSchema(BaseModel):
     modifiers: List[ModifierSchema]
 
 
-# А это основная схема для каждого элемента в итоговом списке
 class FlatProductSchema(BaseModel):
-    id: int  # ID варианта продукта
-    name: str  # Склеенное имя
+    id: int
+    product_id: int
+    name: str
     description: Optional[str]
     image_url: Optional[str]
-    category: str  # Название категории строкой
+    category: str
     price: int
     value: Optional[float]
     unit: Optional[str]

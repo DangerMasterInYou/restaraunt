@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from .product import Product
 
 
-# справочник категорий (бургер, напиток, салат, десерт и т.д.)
 class Category(IntIdPkMixin, SoftDeleteMixin, Base):
     __tablename__ = "categories"
 

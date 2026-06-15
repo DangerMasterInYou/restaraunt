@@ -13,12 +13,10 @@ from core.db_helper import db_helper
 from core.models import User, Token
 
 
-#
 async def auth_user_validate(
     user_data: UserLoginScheme,
     session: AsyncSession,
 ) -> User:
-    # Проверка пользователя
     unauthed_exc = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="invalid username or password",
@@ -38,7 +36,6 @@ async def token_count_check(
     user: User,
     session: AsyncSession,
 ):
-    # Проверка количество токенов
     token_query = await session.execute(select(Token).where(Token.user_id == user.id))
     active_tokens = token_query.scalars().all()
 
@@ -51,7 +48,6 @@ async def validation_user_registration(
     user_data: UserRegisterScheme,
     session: AsyncSession,
 ) -> None:
-    # проверка на существующего пользователя
     conditions = [User.email == user_data.email]
     if user_data.phone:
         conditions.append(User.phone == user_data.phone)
@@ -74,7 +70,6 @@ async def validation_user_registration(
         )
 
 
-# парсим токен и получаем payload
 http_bearer = HTTPBearer()
 
 

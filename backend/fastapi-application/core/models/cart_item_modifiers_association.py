@@ -15,7 +15,6 @@ class CartItemModifiersAssociation(IntIdPkMixin, Base):
     cart_item_id: Mapped[int] = mapped_column(ForeignKey("cart_items.id", ondelete="CASCADE",))
     modifier_id: Mapped[int] = mapped_column(ForeignKey("modifiers.id", ondelete="CASCADE",))
 
-    # СКОЛЬКО раз применен этот модификатор?
     quantity: Mapped[int] = mapped_column(default=1)
 
     cart_items: Mapped["CartItem"] = relationship(back_populates="modifier_details")

@@ -46,7 +46,7 @@ class AuthJWT(BaseModel):
     private_key_path: Path = BASE_DIR / "certs" / "jwt-private.pem"
     public_key_path: Path = BASE_DIR / "certs" / "jwt-public.pem"
     algorithm: str = "RS256"
-    access_token_expire_minutes: int = 300  # время жизни токена
+    access_token_expire_minutes: int = 300
     refresh_token_expire_days: int = 30
     max_token_count: int
     verification_code_expire_minutes: int = 10
@@ -60,9 +60,15 @@ class SMTPConfig(BaseModel):
     email: str
 
 
+class YooKassaConfig(BaseModel):
+    web: str
+    android: str = ""
+    shop_id: str = ""
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=(".env.template", ".env"),
+        env_file=(".env-template", ".env"),
         env_prefix="APP_CONFIG__",
         case_sensitive=False,
         env_nested_delimiter="__",
@@ -72,6 +78,7 @@ class Settings(BaseSettings):
     db: DatabaseConfig
     auth_jwt: AuthJWT
     smtp: SMTPConfig
+    api_yookassa: YooKassaConfig
 
 
 settings = Settings()

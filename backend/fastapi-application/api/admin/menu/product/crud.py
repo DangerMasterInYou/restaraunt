@@ -12,15 +12,12 @@ from .schemas import (
     ProductUpdate,
     ProductResponse,
     ProductDeleteResponse,
-    ProductVariantCreate,  # Добавляем для типизации
+    ProductVariantCreate,
     ProductVariantUpdate,
     ProductVariantDeleteResponse,
 )
 from ..category.category_crud import get_category
 
-# ===================================================================
-# CRUD-ФУНКЦИИ ДЛЯ ПРОДУКТОВ
-# ===================================================================
 
 
 async def get_product(session: AsyncSession, product_id: int) -> Product:
@@ -28,7 +25,10 @@ async def get_product(session: AsyncSession, product_id: int) -> Product:
     product: Product | None = await session.get(
         Product,
         product_id,
-        options=[joinedload(Product.category), subqueryload(Product.variants)],
+        options=[
+            joinedload(Product.category),
+            subqueryload(Product.variants).selectinload(ProductVariant.modifier_groups),
+        ],
     )
     if product is None:
         raise HTTPException(
@@ -61,7 +61,6 @@ async def create_product(
     session: AsyncSession,
 ) -> Product:
     try:
-        # Проверяем, существует ли категория и не удалена ли она
         category = await get_category(
             session=session, category_id=product_data.category_id
         )
@@ -71,31 +70,16 @@ async def create_product(
                 detail=f"Категория с ID {product_data.category_id} удалена и не может быть использована.",
             )
 
-        # Проверяем уникальность имени нового продукта
         await check_for_an_existing_product(session, product_data.name)
 
-        # if not product_data.variants:
-        #     raise HTTPException(
-        #         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        #         detail="Продукт должен иметь хотя бы один вариант.",
-        #     )
 
-        # Создаем абстрактный продукт
         product_dict = product_data.model_dump(exclude={"variants"})
         new_product = Product(**product_dict)
         session.add(new_product)
-        # await session.flush()  # Получаем ID для new_product
-        #
-        # # Создаем варианты для этого продукта
-        # for variant_data in product_data.variants:
-        #     variant_dict = variant_data.model_dump()
-        #     variant_dict["product_id"] = new_product.id
-        #     new_variant = ProductVariant(**variant_dict)
-        #     session.add(new_variant)
 
         await session.commit()
-        await session.refresh(new_product, ["category", "variants"])  # Обновляем связи
-        return new_product
+        await session.refresh(new_product, ["category", "variants"])
+        return await get_product(session, new_product.id)
 
     except HTTPException:
         await session.rollback()
@@ -108,11 +92,23 @@ async def create_product(
         )
 
 
+async def reorder_products(session: AsyncSession, ids: List[int]) -> None:
+    """#FE11: задаёт sort_order по порядку переданных id (drag-сортировка)."""
+    for index, product_id in enumerate(ids):
+        product = await session.get(Product, product_id)
+        if product is not None:
+            product.sort_order = index
+    await session.commit()
+
+
 async def get_products(session: AsyncSession) -> List[ProductResponse]:
     result = await session.scalars(
         select(Product)
-        .options(joinedload(Product.category), selectinload(Product.variants))
-        .order_by(Product.sort_order)
+        .options(
+            joinedload(Product.category),
+            selectinload(Product.variants).selectinload(ProductVariant.modifier_groups),
+        )
+        .order_by(Product.category_id, Product.sort_order, Product.id)
     )
     products: List[Product] = list(result.all())
     return products
@@ -150,7 +146,7 @@ async def update_product(
 
         await session.commit()
         await session.refresh(product, ["category", "variants"])
-        return product
+        return await get_product(session, product_id)
 
     except HTTPException:
         await session.rollback()
@@ -215,14 +211,15 @@ async def hard_delete_product(
         )
 
 
-# ===================================================================
-# CRUD-ФУНКЦИИ ДЛЯ ВАРИАНТОВ ПРОДУКТОВ
-# ===================================================================
 
 
 async def get_all_variants(session: AsyncSession) -> List[ProductVariant]:
     """Получает список всех вариантов (включая мягко удаленные)."""
-    result = await session.execute(select(ProductVariant).order_by(ProductVariant.id))
+    result = await session.execute(
+        select(ProductVariant)
+        .options(selectinload(ProductVariant.modifier_groups))
+        .order_by(ProductVariant.id)
+    )
     return list(result.scalars().all())
 
 
@@ -267,7 +264,6 @@ async def create_variant_for_product(
 ) -> ProductVariant:
     """Создает новый вариант для существующего продукта."""
     try:
-        # Проверяем, что родительский продукт существует и не удален
         product = await get_product(session, product_id)
         if product.is_deleted:
             raise HTTPException(
@@ -275,14 +271,12 @@ async def create_variant_for_product(
                 detail=f"Продукт с ID {product_id} удален и не может быть изменен.",
             )
 
-        # Проверяем SKU на уникальность
         await check_for_an_existing_sku(session, variant_data.sku)
 
-        # Создаем и добавляем новый вариант
         new_variant = ProductVariant(product_id=product_id, **variant_data.model_dump())
         session.add(new_variant)
         await session.commit()
-        await session.refresh(new_variant)
+        await session.refresh(new_variant, ["modifier_groups"])
         return new_variant
 
     except HTTPException:
@@ -315,7 +309,7 @@ async def update_variant(
             setattr(variant, key, value)
 
         await session.commit()
-        await session.refresh(variant)
+        await session.refresh(variant, ["modifier_groups"])
         return variant
 
     except HTTPException:
@@ -345,11 +339,10 @@ async def soft_delete_variant(
                 detail=f"Вариант уже находится в состоянии '{state}'",
             )
 
-        # --- Проверка на последний вариант ---
-        if deleted:  # Проверяем только при удалении
+        if deleted:
             count_stmt = select(func.count(ProductVariant.id)).where(
                 ProductVariant.product_id == variant.product_id,
-                ProductVariant.is_deleted == False,  # Считаем только активные варианты
+                ProductVariant.is_deleted == False,
             )
             active_variants_count = await session.scalar(count_stmt)
             if active_variants_count <= 1:
@@ -357,7 +350,6 @@ async def soft_delete_variant(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Нельзя удалить последний активный вариант продукта.",
                 )
-        # ------------------------------------
 
         variant.is_deleted = deleted
         message = "Вариант мягко удален." if deleted else "Вариант восстановлен."
@@ -381,8 +373,6 @@ async def hard_delete_variant(
     try:
         variant_to_delete = await get_variant(session, variant_id)
 
-        # --- КЛЮЧЕВАЯ БИЗНЕС-ЛОГИКА ---
-        # Проверяем, не является ли этот вариант последним для продукта
         count_stmt = select(func.count(ProductVariant.id)).where(
             ProductVariant.product_id == variant_to_delete.product_id
         )
@@ -393,7 +383,6 @@ async def hard_delete_variant(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Нельзя удалить последний вариант продукта. Сначала удалите родительский продукт.",
             )
-        # --------------------------------
 
         await session.delete(variant_to_delete)
         await session.commit()

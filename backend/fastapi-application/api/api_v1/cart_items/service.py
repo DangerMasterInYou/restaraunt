@@ -1,4 +1,3 @@
-# cart/service.py
 
 from typing import List
 from fastapi import HTTPException, status
@@ -15,37 +14,54 @@ from .schemas import (
     ModifierResponse,
     ProductVariantResponse,
 )
-from core.models import CartItem, CartItemModifiersAssociation, ProductVariant
+from core.models import CartItem, CartItemModifiersAssociation, Modifier, ProductVariant
+from api.api_v1.promotions.discounts import compute_cart_discount
 
-# --- Вспомогательная функция для сборки ответа ---
 
 
-def _create_cart_response(cart_items: List[CartItem]) -> CartResponse:
-    """Собирает и рассчитывает полный ответ для корзины."""
+async def _create_cart_response(
+    cart_items: List[CartItem],
+    session: AsyncSession,
+    user_birthday=None,
+) -> CartResponse:
+    """Собирает и рассчитывает полный ответ для корзины (со скидками по акциям)."""
     response_items = []
     total_cart_price = 0
+    line_items = []
 
     for item in cart_items:
-        # Рассчитываем цену для одной единицы товара с модификаторами
         base_price = item.product_variant.price
         modifiers_price = sum(
             mod.modifier.price_delta * mod.quantity for mod in item.modifier_details
         )
         price_per_one_unit = base_price + modifiers_price
 
-        # Рассчитываемды подытог для всей строки (цена * количество)
         subtotal_price = price_per_one_unit * item.quantity
         total_cart_price += subtotal_price
 
-        # Собираем ответ для этой строки
+        product = item.product_variant.product
+        line_items.append(
+            {
+                "category_id": product.category_id if product else None,
+                "product_id": item.product_variant.product_id,
+                "subtotal": subtotal_price,
+            }
+        )
+
+        pv = ProductVariantResponse.model_validate(item.product_variant)
+        pv.image_url = item.product_variant.image_url or (
+            product.image_url if product else None
+        )
+
         response_items.append(
             CartItemResponse(
                 id=item.id,
                 quantity=item.quantity,
                 subtotal_price=subtotal_price,
-                product_variant=ProductVariantResponse.model_validate(
-                    item.product_variant
-                ),
+                product_name=item.product_variant.product.name
+                if item.product_variant.product
+                else None,
+                product_variant=pv,
                 applied_modifiers=[
                     AppliedModifierResponse(
                         quantity=mod.quantity,
@@ -56,10 +72,18 @@ def _create_cart_response(cart_items: List[CartItem]) -> CartResponse:
             )
         )
 
-    return CartResponse(items=response_items, total_price=total_cart_price)
+    discount, applied = await compute_cart_discount(
+        session, line_items, user_birthday=user_birthday
+    )
+    return CartResponse(
+        items=response_items,
+        total_price=total_cart_price - discount,
+        subtotal_price=total_cart_price,
+        discount=discount,
+        applied_promotions=applied,
+    )
 
 
-# --- Основные сервисные функции ---
 
 
 async def get_cart_for_user(user_id: int, session: AsyncSession) -> CartResponse:
@@ -68,21 +92,29 @@ async def get_cart_for_user(user_id: int, session: AsyncSession) -> CartResponse
         select(CartItem)
         .where(CartItem.user_id == user_id)
         .options(
-            # Эффективно загружаем все связанные данные, чтобы избежать N+1 запросов
             selectinload(CartItem.modifier_details).joinedload(
                 CartItemModifiersAssociation.modifier
             ),
             joinedload(CartItem.product_variant).joinedload(ProductVariant.product),
+            joinedload(CartItem.product_variant).selectinload(
+                ProductVariant.modifier_groups
+            ),
         )
         .order_by(CartItem.created_at)
     )
     result = await session.execute(query)
     cart_items = result.scalars().all()
 
-    return _create_cart_response(list(cart_items))
+    from core.models import User
+
+    user = await session.get(User, user_id)
+    user_birthday = user.birthday if user else None
+
+    return await _create_cart_response(
+        list(cart_items), session, user_birthday=user_birthday
+    )
 
 
-# Новая, улучшенная функция вместо старой 'add_item'
 async def add_or_update_item(
     user_id: int, item_data: CartItemRequest, session: AsyncSession
 ) -> CartResponse:
@@ -93,28 +125,64 @@ async def add_or_update_item(
     Обрабатывает ошибки несуществующих ID.
     """
 
-    # Оборачиваем ВСЮ логику изменения данных в try...except
     try:
-        # --- Вся ваша предыдущая логика остается здесь ---
+        variant = await session.get(ProductVariant, item_data.product_variant_id)
+        if not variant or variant.is_deleted or not variant.is_available:
+            default_variant = (
+                await session.execute(
+                    select(ProductVariant)
+                    .where(
+                        ProductVariant.product_id == item_data.product_variant_id,
+                        ProductVariant.is_deleted == False,
+                        ProductVariant.is_available == True,
+                    )
+                    .limit(1)
+                )
+            ).scalars().first()
 
-        # 1. Подготавливаем данные из запроса для сравнения.
+            if not default_variant:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Вариант товара ID {item_data.product_variant_id} не найден.",
+                )
+            variant = default_variant
+
+        final_product_variant_id = variant.id
+
+        modifier_ids = [m.modifier_id for m in item_data.modifiers]
+        if modifier_ids:
+            unique_ids = set(modifier_ids)
+            modifiers = (
+                await session.execute(
+                    select(Modifier)
+                    .where(Modifier.id.in_(list(unique_ids)))
+                    .where(Modifier.is_deleted == False)
+                )
+            ).scalars().all()
+            if len(modifiers) != len(unique_ids):
+                missing_ids = unique_ids - {m.id for m in modifiers}
+                missing_id = next(iter(missing_ids))
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Модификатор ID {missing_id} не найден.",
+                )
+
+
         incoming_modifiers_dict = {
             mod.modifier_id: mod.quantity for mod in item_data.modifiers
         }
 
-        # 2. Ищем потенциальных кандидатов в корзине пользователя.
         query = (
             select(CartItem)
             .where(
                 CartItem.user_id == user_id,
-                CartItem.product_variant_id == item_data.product_variant_id,
+                CartItem.product_variant_id == final_product_variant_id,
             )
             .options(selectinload(CartItem.modifier_details))
         )
         result = await session.execute(query)
         potential_matches = result.scalars().all()
 
-        # 3. Перебираем кандидатов и ищем точное совпадение
         item_to_update = None
         for existing_item in potential_matches:
             existing_modifiers_dict = {
@@ -124,17 +192,15 @@ async def add_or_update_item(
                 item_to_update = existing_item
                 break
 
-        # 4. Выполняем логику "Найди или Создай"
         if item_to_update:
             item_to_update.quantity += item_data.quantity
         else:
             new_cart_item = CartItem(
                 user_id=user_id,
-                product_variant_id=item_data.product_variant_id,
+                product_variant_id=final_product_variant_id,
                 quantity=item_data.quantity,
             )
             session.add(new_cart_item)
-            # Используем flush, чтобы ошибка внешнего ключа возникла здесь, до коммита
             await session.flush()
 
             for mod_data in item_data.modifiers:
@@ -145,15 +211,11 @@ async def add_or_update_item(
                 )
                 session.add(applied_mod)
 
-        # 5. Сохраняем все изменения
         await session.commit()
 
-    # --- Вот новый блок обработки ошибок ---
     except IntegrityError as e:
-        # ОБЯЗАТЕЛЬНО откатываем транзакцию, чтобы сессия осталась чистой
         await session.rollback()
 
-        # Анализируем текст оригинальной ошибки, чтобы дать более точный ответ
         error_detail = str(e.orig)
         if "fk_cart_items_product_variant_id_product_variants" in error_detail:
             raise HTTPException(
@@ -161,7 +223,6 @@ async def add_or_update_item(
                 detail=f"Товар с ID {item_data.product_variant_id} не найден.",
             )
         if "fk_applied_modifiers_modifier_id_modifiers" in error_detail:
-            # Находим ID несуществующего модификатора для более детальной ошибки
             invalid_modifier_id = -1
             for mod in item_data.modifiers:
                 if str(mod.modifier_id) in error_detail:
@@ -172,13 +233,11 @@ async def add_or_update_item(
                 detail=f"Модификатор с ID {invalid_modifier_id} не найден.",
             )
 
-        # Общая ошибка, если не удалось определить конкретную причину
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=f"Ошибка целостности данных: {error_detail}",
         )
 
-    # 6. Возвращаем обновленное состояние корзины в случае успеха
     return await get_cart_for_user(user_id, session)
 
 
@@ -192,10 +251,8 @@ async def update_item_quantity(
             detail="Количество должно быть положительным числом. Для удаления используйте DELETE.",
         )
 
-    # Находим строку в корзине
     cart_item = await session.get(CartItem, cart_item_id)
 
-    # КРИТИЧЕСКАЯ ПРОВЕРКА БЕЗОПАСНОСТИ: убеждаемся, что пользователь меняет свою корзину
     if not cart_item or cart_item.user_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -214,7 +271,6 @@ async def remove_item(
     """Удаляет строку из корзины."""
     cart_item = await session.get(CartItem, cart_item_id)
 
-    # КРИТИЧЕСКАЯ ПРОВЕРКА БЕЗОПАСНОСТИ
     if not cart_item or cart_item.user_id != user_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

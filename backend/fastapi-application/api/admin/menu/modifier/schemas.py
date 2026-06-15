@@ -1,32 +1,43 @@
-# Файл: api/admin/menu/modifier/schemas.py (Рекомендую создать новую папку и файл)
-
 from typing import List, Optional
-from pydantic import BaseModel, ConfigDict
-
-# ===================================================================
-# СХЕМЫ ДЛЯ УПРАВЛЕНИЯ МОДИФИКАТОРАМИ И ИХ ГРУППАМИ
-# ===================================================================
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
-# --- Схемы для Модификатора (опции внутри группы) ---
 class ModifierResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     name: str
     price_delta: int
+    image_url: Optional[str] = None
+    is_deleted: bool = False
+    group_id: int
+
+    @field_validator("price_delta", mode="before")
+    @classmethod
+    def coerce_price_delta(cls, v):
+        if v is None:
+            return 0
+        return int(v)
+
+    @field_validator("group_id", mode="before")
+    @classmethod
+    def coerce_group_id(cls, v):
+        if v is None:
+            return 0
+        return int(v)
 
 
 class ModifierCreate(BaseModel):
     name: str
     price_delta: int = 0
+    image_url: Optional[str] = None
 
 
 class ModifierUpdate(BaseModel):
     name: Optional[str] = None
     price_delta: Optional[int] = None
+    image_url: Optional[str] = None
 
 
-# --- Схемы для Группы Модификаторов ---
 class ModifierGroupResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
@@ -41,8 +52,6 @@ class ModifierGroupCreate(BaseModel):
     name: str
     is_required: bool = False
     is_multiselect: bool = True
-    # # Группа создается сразу со списком своих опций
-    # modifiers: List[ModifierCreate]
 
 
 class ModifierGroupUpdate(BaseModel):
@@ -56,7 +65,6 @@ class ModifierGroupDeleteResponse(BaseModel):
     message: str
 
 
-# Схема для управления связью
 class AssociationResponse(BaseModel):
     success: bool
     message: str

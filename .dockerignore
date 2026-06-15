@@ -1,0 +1,13 @@
+**/.git
+**/.idea
+**/.dart_tool
+**/.venv
+**/__pycache__
+**/.gradle
+**/.kotlin
+flutter_application_restaraunt/build
+flutter_application_restaraunt/android/.gradle
+flutter_application_restaraunt/android/app/build
+backend/.venv
+_strip_backup
+*.iml

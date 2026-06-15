@@ -1,4 +1,3 @@
-# models.py
 import enum
 from datetime import datetime
 from typing import List, Optional, TYPE_CHECKING
@@ -14,12 +13,11 @@ from .mixins import IntIdPkMixin
 if TYPE_CHECKING:
     from .product_variant import ProductVariant
     from .modifier import Modifier
-# --- Блок 4: Склад (Ингредиенты и Рецепты) ---
 
 class Ingredient(IntIdPkMixin, Base):
     __tablename__ = "ingredients"
     name: Mapped[str] = mapped_column(String(100), unique=True)
-    unit_of_measure: Mapped[str] = mapped_column(String(10)) # "гр", "мл", "шт"
+    unit_of_measure: Mapped[str] = mapped_column(String(10))
 
 class Recipe(Base):
     """Рецепт для основного товара."""
@@ -42,7 +40,6 @@ class ModifierRecipe(Base):
     ingredient: Mapped["Ingredient"] = relationship()
 
 
-# --- Блок 5: Учет (Транзакции) ---
 
 class TransactionType(enum.Enum):
     PURCHASE = "Приход"
@@ -63,7 +60,7 @@ class InventoryTransactionDetail(IntIdPkMixin, Base):
     __tablename__ = "inventory_transaction_details"
     transaction_id: Mapped[int] = mapped_column(ForeignKey("inventory_transactions.id"))
     ingredient_id: Mapped[int] = mapped_column(ForeignKey("ingredients.id"))
-    quantity: Mapped[float] # Положительное для прихода, отрицательное для расхода
+    quantity: Mapped[float]
 
     transaction: Mapped["InventoryTransaction"] = relationship(back_populates="details")
     ingredient: Mapped["Ingredient"] = relationship()

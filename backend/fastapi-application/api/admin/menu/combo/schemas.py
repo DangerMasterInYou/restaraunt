@@ -1,9 +1,7 @@
-# Файл: api/admin/menu/combo/schemas.py (Рекомендую создать новую папку и файл)
 
 from typing import List
 from pydantic import BaseModel, ConfigDict
 
-# Импортируем схему ответа для варианта, чтобы показать, ЧТО именно лежит в комбо
 from ..product.schemas import ProductVariantResponse
 
 
@@ -19,7 +17,6 @@ class ComboItemResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
     quantity: int
-    # Показываем полную информацию о вложенном товаре
     included_variant: ProductVariantResponse
 
 

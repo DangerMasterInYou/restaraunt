@@ -1,6 +1,6 @@
 from typing import Annotated, List
 
-from fastapi import APIRouter, status, Depends, Path
+from fastapi import APIRouter, status, Depends, Path, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.admin.menu.category.category_schemas import (
@@ -14,6 +14,15 @@ from core.db_helper import db_helper
 from . import category_crud
 
 router = APIRouter()
+
+
+@router.post("/categories/reorder", status_code=status.HTTP_204_NO_CONTENT)
+async def reorder_categories(
+    session: Annotated[AsyncSession, Depends(db_helper.session_getter)],
+    ids: List[int] = Body(..., embed=True),
+):
+    """#FE11: применяет порядок категорий (drag-сортировка)."""
+    await category_crud.reorder_categories(session, ids)
 
 
 @router.post(

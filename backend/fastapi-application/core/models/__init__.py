@@ -12,33 +12,22 @@ __all__ = {
     "CartItem",
     "CartItemModifiersAssociation",
     "PaymentStatusEnum",
+    "Promotion",
+    "PromotionType",
+    "PromotionTargetType",
 
-    # "Role",
-    # "UserAndRole",
-    # "Permission",
-    # "RoleAndPermission",
 
-# "Cart",
-# "CartFoodAssociation",
-    # "Order",
-    # "OrderFoodAssociation",
-#     "Payment",
-#     "Address",
 
     "Order",
     "OrderItem",
     "Payment",
     "OrderStatusHistory",
     "Favorite",
+    "FavoriteGroup",
+    "FavoriteGroupItem",
     "Review",
     "OrderStatusEnum",
 
-    # "Ingredient",
-    # "Recipe",
-    # "ModifierRecipe",
-    # "TransactionType",
-    # "InventoryTransaction",
-    # "InventoryTransactionDetail",
 }
 
 from .base import Base
@@ -56,17 +45,12 @@ from .combo_bundle import ComboBundle
 from .cart_item import CartItem
 from .cart_item_modifiers_association import CartItemModifiersAssociation
 
-# from .role import Role
-# from .user_and_role import UserAndRole
-# from .permission import Permission
-# from .role_and_permission import RoleAndPermission
+from .promotion import Promotion, PromotionType, PromotionTargetType
 
 
 
-# from .cart import Cart
-# from .cart_food_association import CartFoodAssociation
 
-# from .models import Order, OrderFoodAssociation, Payment, Address
+
 
 from .order_processing import (
     Order,
@@ -74,16 +58,10 @@ from .order_processing import (
     Payment,
     OrderStatusHistory,
     Favorite,
+    FavoriteGroup,
+    FavoriteGroupItem,
     Review,
     OrderStatusEnum,
 PaymentStatusEnum
 )
 
-# from .warehouse import (
-#     Ingredient,
-#     Recipe,
-#     ModifierRecipe,
-#     TransactionType,
-#     InventoryTransaction,
-#     InventoryTransactionDetail,
-# )

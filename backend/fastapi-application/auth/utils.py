@@ -13,8 +13,8 @@ def encode_jwt(
     expire_minutes: int = settings.auth_jwt.access_token_expire_minutes,
     expire_timedelta: timedelta | None = None,
 ) -> str:
-    to_encode = payload.copy()  # копия
-    now = datetime.utcnow()  # текущее время
+    to_encode = payload.copy()
+    now = datetime.utcnow()
 
     if expire_timedelta:
         expire = now + expire_timedelta
@@ -24,7 +24,7 @@ def encode_jwt(
     to_encode.update(
         iat=now,
         exp=expire,
-    )  # время выпуска токена
+    )
     encoded = jwt.encode(
         payload=to_encode,
         key=private_key,

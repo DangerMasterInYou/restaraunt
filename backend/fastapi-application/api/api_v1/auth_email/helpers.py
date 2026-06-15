@@ -16,8 +16,6 @@ async def token_count_check(
     active_tokens = active_tokens.all()
 
     if len(active_tokens) >= max_tokens:
-        # Удаляем самые старые токены, оставляя (max_tokens - 1) токенов
-        # чтобы освободить место для нового
         tokens_to_delete = active_tokens[: len(active_tokens) - (max_tokens - 1)]
         for token in tokens_to_delete:
             await session.delete(token)

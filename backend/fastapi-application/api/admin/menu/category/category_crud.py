@@ -1,6 +1,6 @@
 from typing import List
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import HTTPException, status
@@ -14,6 +14,15 @@ from api.admin.menu.category.category_schemas import (
 )
 
 
+async def reorder_categories(session: AsyncSession, ids: List[int]) -> None:
+    """#FE11: задаёт sort_order по порядку переданных id (drag-сортировка)."""
+    for index, category_id in enumerate(ids):
+        category = await session.get(Category, category_id)
+        if category is not None:
+            category.sort_order = index
+    await session.commit()
+
+
 async def create_category(
     category_data: CategoryCreate,
     session: AsyncSession,
@@ -24,6 +33,8 @@ async def create_category(
             session=session,
             category=category_dict,
         )
+        max_order = await session.scalar(select(func.max(Category.sort_order)))
+        category_dict["sort_order"] = (max_order or 0) + 1
         category = Category(**category_dict)
         session.add(category)
         await session.commit()
@@ -48,7 +59,6 @@ async def get_categories(
     try:
         results = await session.scalars(
             select(Category)
-            # .where(Category.is_deleted == False)
             .order_by(Category.sort_order)
         )
         if not results:

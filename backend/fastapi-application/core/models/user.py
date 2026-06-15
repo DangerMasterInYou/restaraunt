@@ -12,7 +12,7 @@ from core.models.mixins import IntIdPkMixin
 
 if TYPE_CHECKING:
     from .cart_item import CartItem
-    from .order_processing import Order, Favorite, Review
+    from .order_processing import Order, Favorite, Review, FavoriteGroup
 
 class UserRole(str, enum.Enum):
     client = "client"
@@ -43,6 +43,9 @@ class User(IntIdPkMixin, Base):
 
     orders: Mapped[List["Order"]] = relationship(back_populates="user")
     favorites: Mapped[List["Favorite"]] = relationship(back_populates="user")
+    favorite_groups: Mapped[List["FavoriteGroup"]] = relationship(
+        back_populates="user"
+    )
     reviews: Mapped[List["Review"]] = relationship(back_populates="user")
 
     def to_dict(self) -> dict:

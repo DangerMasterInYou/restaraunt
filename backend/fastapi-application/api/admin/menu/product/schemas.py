@@ -4,12 +4,15 @@ from pydantic import BaseModel, ConfigDict
 from api.admin.menu.category.category_schemas import CategoryResponse
 
 
-# ===================================================================
-# СХЕМЫ ДЛЯ УПРАВЛЕНИЯ ПРОДУКТАМИ
-# ===================================================================
 
 
-# --- Схемы для вариантов ---
+
+
+class ProductVariantModifierGroupResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    name: str
+    is_deleted: bool
 
 
 class ProductVariantResponse(BaseModel):
@@ -24,22 +27,23 @@ class ProductVariantResponse(BaseModel):
     value: Optional[float]
     unit: Optional[str]
     is_available: bool
-    is_deleted: bool  # Добавляем флаг мягкого удаления
+    is_deleted: bool
     is_combo: bool
+    modifier_groups: List[ProductVariantModifierGroupResponse] = []
 
 
 class ProductVariantCreate(BaseModel):
     name: str
     description: Optional[str] = None
     image_url: Optional[str] = (
-        "/static/images/placeholder_variant.png"  # Отдельная заглушка
+        "/static/images/placeholder_variant.png"
     )
     price: int
     sku: str
     value: Optional[float] = None
     unit: Optional[str] = None
     is_available: bool = True
-    is_combo: bool = False  # По умолчанию вариант - не комбо
+    is_combo: bool = False
 
 
 class ProductVariantUpdate(BaseModel):
@@ -51,28 +55,24 @@ class ProductVariantUpdate(BaseModel):
     value: Optional[float] = None
     unit: Optional[str] = None
     is_available: Optional[bool] = None
-    is_combo: Optional[bool] = None  # Позволяем сделать вариант комбо
+    is_combo: Optional[bool] = None
 
 
-class ProductVariantDeleteResponse(BaseModel):  # Эта схема уже подходит
+class ProductVariantDeleteResponse(BaseModel):
     success: bool
     message: str
 
 
-# --- Основные схемы для Продукта ---
 
 
-# Схема для создания продукта (включая его варианты)
 class ProductCreate(BaseModel):
     category_id: int
     name: str
     description: Optional[str] = None
-    image_url: str = "/static/images/placeholder.png"  # URL-заглушка по умолчанию
+    image_url: str = "/static/images/placeholder.png"
     sort_order: int = 0
-    # variants: List[ProductVariantCreate]  # Продукт создается сразу с вариантами
 
 
-# Схема для обновления основной информации о продукте
 class ProductUpdate(BaseModel):
     category_id: Optional[int] = None
     name: Optional[str] = None
@@ -81,17 +81,16 @@ class ProductUpdate(BaseModel):
     sort_order: Optional[int] = None
 
 
-# Схема для ответа (возвращает полную информацию о продукте)
 class ProductResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
-    category: CategoryResponse  # Вложенная схема для категории
+    category: CategoryResponse
     name: str
     description: Optional[str]
     image_url: str
     sort_order: int
     is_deleted: bool
-    variants: List[ProductVariantResponse]  # Вложенный список вариантов
+    variants: List[ProductVariantResponse]
 
 
 class ProductDeleteResponse(BaseModel):

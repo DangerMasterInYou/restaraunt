@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends, Path, status
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Импортируем все необходимое из соседних файлов
 from core.db_helper import db_helper
 from . import crud
 from .schemas import (
@@ -18,13 +17,8 @@ from .schemas import (
     ModifierDeleteResponse,
 )
 
-# Создаем роутер с префиксом и тегом для группировки в документации
-# router = APIRouter(prefix="/admin/modifier-groups", tags=["Admin: Modifier Groups"])
 router = APIRouter()
 
-# ===================================================================
-# ЭНДПОИНТЫ ДЛЯ CRUD ОПЕРАЦИЙ С ГРУППАМИ МОДИФИКАТОРОВ
-# ===================================================================
 
 
 @router.post(
@@ -100,7 +94,6 @@ async def update_modifier_group(
 async def soft_delete_modifier_group(
     group_id: Annotated[int, Path(description="ID группы для мягкого удаления")],
     session: Annotated[AsyncSession, Depends(db_helper.session_getter)],
-    # credentials: HTTPAuthorizationCredentials,
 ):
     """
     Помечает группу как удаленную, но не удаляет ее из базы данных.
@@ -143,9 +136,6 @@ async def hard_delete_modifier_group(
     return await crud.hard_delete_modifier_group(group_id=group_id, session=session)
 
 
-# ===================================================================
-# ЭНДПОИНТЫ ДЛЯ УПРАВЛЕНИЯ СВЯЗЯМИ (ПРИМЕНЕНИЕ ГРУПП К ТОВАРАМ)
-# ===================================================================
 
 
 @router.post(
@@ -186,13 +176,41 @@ async def unlink_group_from_variant(
     )
 
 
-# ===================================================================
-# ЭНДПОИНТЫ ДЛЯ CRUD ОПЕРАЦИЙ С ОТДЕЛЬНЫМИ МОДИФИКАТОРАМИ (ОПЦИЯМИ)
-# ===================================================================
+@router.post(
+    "/link/products/{product_id}/groups/{group_id}",
+    response_model=AssociationResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Применить группу ко всем вариантам продукта (#FE14)",
+)
+async def link_group_to_product(
+    product_id: Annotated[int, Path(description="ID продукта")],
+    group_id: Annotated[int, Path(description="ID группы модификаторов")],
+    session: Annotated[AsyncSession, Depends(db_helper.session_getter)],
+):
+    return await crud.link_group_to_product(
+        product_id=product_id, group_id=group_id, session=session
+    )
+
+
+@router.delete(
+    "/link/products/{product_id}/groups/{group_id}",
+    response_model=AssociationResponse,
+    summary="Отвязать группу от всех вариантов продукта (#FE14)",
+)
+async def unlink_group_from_product(
+    product_id: Annotated[int, Path(description="ID продукта")],
+    group_id: Annotated[int, Path(description="ID группы модификаторов")],
+    session: Annotated[AsyncSession, Depends(db_helper.session_getter)],
+):
+    return await crud.unlink_group_from_product(
+        product_id=product_id, group_id=group_id, session=session
+    )
+
+
 
 
 @router.get(
-    "/modifiers/",
+    "/modifiers",
     response_model=List[ModifierResponse],
     summary="Получить список всех опций (модификаторов)",
 )

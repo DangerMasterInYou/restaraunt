@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Path, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.db_helper import db_helper
-from api.api_v1.auth_jwt.crud_validation import get_current_user_id
+from core.services.check_policy import get_current_active_user_id as get_current_user_id
 
 from .schemas import CartResponse, CartItemRequest, CartItemRequestUpdate
 from . import service as cart_service

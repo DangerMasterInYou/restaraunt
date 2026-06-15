@@ -13,7 +13,6 @@ from datetime import datetime
 from typing import Optional
 
 router = APIRouter()
-# rrr
 
 
 @router.get("/profile")
@@ -60,7 +59,7 @@ async def patch_profile(
         updated = True
 
     if not updated:
-        return user  # ничего менять не нужно
+        return user
 
     session.add(user)
     await session.commit()

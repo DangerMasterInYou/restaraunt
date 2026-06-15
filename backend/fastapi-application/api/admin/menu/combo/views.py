@@ -1,4 +1,3 @@
-# Файл: api/admin/menu/combo/router.py
 
 from typing import Annotated, List
 from fastapi import APIRouter, Depends, Path, status

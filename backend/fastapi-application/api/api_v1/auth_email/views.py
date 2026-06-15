@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.db_helper import db_helper
 
 
-from .utils.verify_email import send_verification_code
 from .schemas import (
     EmailRequestScheme,
     EmailResponseScheme,
@@ -34,15 +33,10 @@ async def request_verification_code(
     user_data: EmailRequestScheme,
     background_tasks: BackgroundTasks,
 ):
-    verification_code: str = crud.generation_verification_code()
-
-    background_tasks.add_task(
-        send_verification_code,
-        recipient=str(user_data.email),
-        verification_code=verification_code,
-    )
     return await crud.request_code(
-        user_data=user_data, verification_code=verification_code, session=session
+        user_data=user_data,
+        background_tasks=background_tasks,
+        session=session,
     )
 
 
@@ -59,13 +53,13 @@ async def verify_code(
 
 
 class SQLQueryRequest(BaseModel):
-    queries: List[str]  # список запросов вместо одного
+    queries: List[str]
     params: Optional[Dict[str, Any]] = None
 
 
 class SQLQueryResponse(BaseModel):
     success: bool
-    results: Optional[List[Dict[str, Any]]] = None  # результаты по каждому запросу
+    results: Optional[List[Dict[str, Any]]] = None
     message: Optional[str] = None
 
 

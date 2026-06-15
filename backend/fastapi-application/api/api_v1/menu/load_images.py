@@ -1,4 +1,3 @@
-# routers/products.py
 import os
 import shutil
 import uuid
@@ -14,14 +13,33 @@ from core.models import Product
 
 router = APIRouter(prefix="/products", tags=["Products"])
 
-# Путь к папке из main.py
 IMAGES_DIR = "static/images"
 
 http_bearer = HTTPBearer()
 
+
+@router.post("/upload-image")
+async def upload_image(
+    credentials: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
+    file: UploadFile = File(...),
+):
+    """Универсальная загрузка картинки. Возвращает {"image_url": "/static/..."}.
+
+    Используется формами админ-панели (продукт, вариант, модификатор) для
+    смены изображения по нажатию (#19).
+    """
+    ext = (file.filename or "img.png").split(".")[-1]
+    unique_filename = f"{uuid.uuid4()}.{ext}"
+    file_path = os.path.join(IMAGES_DIR, unique_filename)
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+    finally:
+        file.file.close()
+    return {"image_url": f"/static/images/{unique_filename}"}
+
 @router.post(
     "/{product_id}/upload-image",
-    # response_model=schemas.Product,
 )
 async def upload_product_image(
     session: Annotated[AsyncSession, Depends(db_helper.session_getter)],
@@ -29,7 +47,6 @@ async def upload_product_image(
 credentials: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
     file: UploadFile = File(...),
 ):
-    # 1. Проверяем, существует ли продукт
     product: Product | None = await session.scalar(
         select(Product).where(Product.id == product_id)
     )
@@ -39,20 +56,16 @@ credentials: Annotated[HTTPAuthorizationCredentials, Depends(http_bearer)],
             detail=f"Product with id {product_id} not found",
         )
 
-    # 2. Генерируем уникальное имя файла, сохраняя расширение
     file_extension = file.filename.split(".")[-1]
     unique_filename = f"{uuid.uuid4()}.{file_extension}"
     file_path = os.path.join(IMAGES_DIR, unique_filename)
 
-    # 3. Сохраняем файл на диск
     try:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
     finally:
         file.file.close()
 
-    # 4. Сохраняем путь в базу данных
-    # ВАЖНО: сохраняем путь, который будет использоваться в URL
     image_url_path = f"/static/images/{unique_filename}"
     product.image_url = image_url_path
     await session.commit()

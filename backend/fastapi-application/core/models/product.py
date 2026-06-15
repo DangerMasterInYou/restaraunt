@@ -6,7 +6,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from core.models import Base
 from .mixins import IntIdPkMixin, SoftDeleteMixin
 if TYPE_CHECKING:
-    # from .cart_food_association import CartFoodAssociation
     from .category import Category
     from .product_variant import ProductVariant
 
@@ -24,8 +23,5 @@ class Product(IntIdPkMixin, SoftDeleteMixin, Base):
     variants: Mapped[List["ProductVariant"]] = relationship(
         back_populates="product", cascade="all, delete-orphan"
     )
-    # carts_details: Mapped[list["CartFoodAssociation"]] = relationship(
-    #     back_populates="products"
-    # )
 
 

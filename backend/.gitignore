@@ -128,7 +128,9 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+docker-compose.yaml
 .env
+.venv
 .venv
 env/
 venv/
@@ -182,3 +184,5 @@ cython_debug/
 
 /certs
 /fastapi-application/certs/
+docker-compose.yaml
+.env

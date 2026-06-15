@@ -22,4 +22,3 @@ class CartFoodAssociation(IntIdPkMixin, Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id"))
 
     carts: Mapped["Cart"] = relationship(back_populates="products_details")
-    # products: Mapped["Product"] = relationship(back_populates="carts_details")

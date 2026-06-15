@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict
 
 class CategoryCreate(BaseModel):
     name: str
-    sort_order: int
+    sort_order: int | None = None
 
 
 class CategoryUpdate(BaseModel):

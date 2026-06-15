@@ -20,104 +20,107 @@ from .schemas import (
 )
 
 from .helpers import token_count_check
+from . import pending_store
+from .utils.verify_email import send_verification_code
 
 
-# Генерация кода
 def generation_verification_code():
     import secrets
     import string
 
-    # # Генерация более безопасного кода с использованием букв и цифр
-    # alphabet = string.ascii_letters + string.digits
-    # return ''.join(secrets.choice(alphabet) for _ in range(8))
 
-    # Или если нужны только цифры, используйте более безопасный метод
     return "".join(secrets.choice(string.digits) for _ in range(6))
 
 
 async def request_code(
     user_data: EmailRequestScheme,
     session: AsyncSession,
-    verification_code: str,
+    background_tasks,
 ):
-    try:
-        email: EmailStr = user_data.email
-        # Проверка существования пользователя
-        user: User | None = await session.scalar(
-            select(User).where(User.email == email)
-        )
+    """#1: отправка кода БЕЗ записи в БД.
 
-        # Установка времени истечения срока кода
-        expires_at: datetime = datetime.utcnow() + timedelta(
-            minutes=settings.auth_jwt.verification_code_expire_minutes
-        )
+    Код хранится в памяти (pending_store) до подтверждения, чтобы неподтверждённая
+    почта не оставляла запись в users. Здесь же — серверная блокировка перебора
+    и анти-спам на повторную отправку.
+    """
+    email = str(user_data.email)
 
-        if user is None:
-            # регистрация нового пользователя
-            user = User(
-                email=user_data.email,
-                verification_code=verification_code,
-                verification_code_expires_at=expires_at,
-            )
-            session.add(user)
-        else:
-            user.verification_code = verification_code
-            user.verification_code_expires_at = expires_at
-
-        await session.commit()
-        return EmailResponseScheme(
-            success=True,
-            message="Код отправлен на email",
-        )
-    except Exception as e:
-        await session.rollback()
+    blocked = pending_store.block_remaining(email)
+    if blocked > 0:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "message": f"Слишком много попыток. Подождите {blocked} с.",
+                "blocked_seconds": blocked,
+            },
         )
 
+    cooldown = pending_store.resend_remaining(email)
+    if cooldown > 0:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "message": f"Код уже отправлен. Повторить можно через {cooldown} с.",
+                "resend_seconds": cooldown,
+            },
+        )
 
-async def get_valid_user_data_for_auth(
-    data: LoginSchema,
-    session: AsyncSession,
-) -> User:
-    user: User | None = await session.scalar(
-        select(User).where(User.email == data.email)
+    verification_code = generation_verification_code()
+    ttl_seconds = settings.auth_jwt.verification_code_expire_minutes * 60
+    pending_store.save_code(email, verification_code, ttl_seconds)
+
+    background_tasks.add_task(
+        send_verification_code,
+        recipient=email,
+        verification_code=verification_code,
     )
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
-        )
-
-    # Проверка, что пользователь активен
-    if user.is_active is False:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User inactive or deleted",
-        )
-
-    # Проверка кода
-    if user.verification_code != data.code:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Invalid code"
-        )
-
-    # Проверка срока действия кода
-    if (
-        user.verification_code_expires_at
-        and user.verification_code_expires_at < datetime.utcnow()
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Verification code has expired",
-        )
-    return user
+    return EmailResponseScheme(
+        success=True,
+        message="Код отправлен на email",
+    )
 
 
 async def verify_code_and_login(
     data: LoginSchema,
     session: AsyncSession,
 ):
-    user: User = await get_valid_user_data_for_auth(data=data, session=session)
+    email = str(data.email)
+
+    ok, attempts_left, block_rem = pending_store.verify(email, data.code)
+    if not ok:
+        if block_rem > 0:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail={
+                    "message": "Слишком много попыток. Подождите.",
+                    "blocked_seconds": block_rem,
+                    "attempts_left": 0,
+                },
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "message": "Неверный или просроченный код",
+                "attempts_left": attempts_left,
+            },
+        )
+
+    user: User | None = await session.scalar(
+        select(User).where(User.email == data.email)
+    )
+    if user is None:
+        user = User(
+            email=data.email,
+            verification_code="",
+            verification_code_expires_at=datetime.utcnow(),
+        )
+        session.add(user)
+        await session.flush()
+    elif user.is_active is False:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"message": "Пользователь деактивирован"},
+        )
 
     jwt_payload = {
         "sub": str(user.id),
@@ -131,7 +134,6 @@ async def verify_code_and_login(
     user.verification_code = ""
     user.verification_code_expires_at = datetime.utcnow()
 
-    # сохранение jti токена
     try:
         token_info = Token(
             user_id=user.id,
