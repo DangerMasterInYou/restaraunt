@@ -300,10 +300,15 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                 ),
               ]);
             }
+            // По умолчанию группы свёрнуты; раскрываем только первую группу,
+            // у которой есть позиции.
+            final firstNonEmpty =
+                groups.indexWhere((g) => g.items.isNotEmpty);
             return ListView.builder(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
               itemCount: groups.length,
-              itemBuilder: (context, i) => _groupCard(theme, groups[i]),
+              itemBuilder: (context, i) =>
+                  _groupCard(theme, groups[i], expanded: i == firstNonEmpty),
             );
           },
         ),
@@ -311,7 +316,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     );
   }
 
-  Widget _groupCard(ThemeData theme, FavoriteGroupDTO g) {
+  Widget _groupCard(ThemeData theme, FavoriteGroupDTO g,
+      {bool expanded = false}) {
     final cs = theme.colorScheme;
     final total = g.items.fold<int>(0, (s, it) => s + it.price * it.quantity);
     return Card(
@@ -321,7 +327,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       child: Theme(
         data: theme.copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          initiallyExpanded: true,
+          key: PageStorageKey('fav_group_${g.id}'),
+          initiallyExpanded: expanded,
           tilePadding: const EdgeInsets.fromLTRB(16, 4, 8, 4),
           leading: CircleAvatar(
             backgroundColor: cs.primaryContainer,

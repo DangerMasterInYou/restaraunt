@@ -110,7 +110,12 @@ class _VariantCrudDialogState extends State<VariantCrudDialog> {
               label: 'Продукт',
               value: int.tryParse(productIdController.text),
               options: widget.products
-                  .where((p) => !p.variants.any((v) => v.isCombo == true))
+                  // Продукты с комбо-вариантом скрываем при выборе, но текущий
+                  // продукт варианта всегда оставляем видимым (иначе при
+                  // редактировании комбо-варианта список «Продукт» пустеет).
+                  .where((p) =>
+                      p.id == int.tryParse(productIdController.text) ||
+                      !p.variants.any((v) => v.isCombo == true))
                   .map<DropdownOption<int>>(
                       (p) => DropdownOption(p.id as int, p.name as String))
                   .toList(),

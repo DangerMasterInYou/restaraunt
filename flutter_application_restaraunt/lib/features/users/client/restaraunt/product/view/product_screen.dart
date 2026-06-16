@@ -124,7 +124,10 @@ class _ProductScreenState extends State<ProductScreen> {
                 ),
                 centerTitle: true,
               ),
-              body: SingleChildScrollView(
+              body: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1400),
+                  child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -176,6 +179,8 @@ class _ProductScreenState extends State<ProductScreen> {
                       ],
                     ),
                   ],
+                ),
+              ),
                 ),
               ),
             );

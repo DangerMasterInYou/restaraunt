@@ -65,7 +65,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       value: _bloc,
       child: Scaffold(
         appBar: AppBar(title: const Text('Детали заказа')),
-        body: BlocBuilder<OrderDetailBloc, OrderDetailState>(
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1400),
+            child: BlocBuilder<OrderDetailBloc, OrderDetailState>(
           builder: (context, state) {
             if (state is OrderDetailLoading) {
               return const Center(child: CircularProgressIndicator());
@@ -240,6 +243,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               ],
             );
           },
+        ),
+          ),
         ),
       ),
     );

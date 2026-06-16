@@ -50,4 +50,4 @@ app.*.map.json
 .metadata
 .dotenv
 .env
-pubspec.yaml
+pubspec.lock

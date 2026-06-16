@@ -33,6 +33,7 @@ class MenuItemVariant {
   final int? value;
   final String? unit;
   final bool isDefault;
+  final String? imageUrl;
 
   const MenuItemVariant({
     required this.id,
@@ -41,5 +42,12 @@ class MenuItemVariant {
     this.value,
     this.unit,
     this.isDefault = false,
+    this.imageUrl,
   });
+
+  String? get fullImageUrl {
+    final u = imageUrl;
+    if (u == null || u.isEmpty) return null;
+    return u.startsWith('http') ? u : '${ApiConfig.apiSiteUrl}$u';
+  }
 }

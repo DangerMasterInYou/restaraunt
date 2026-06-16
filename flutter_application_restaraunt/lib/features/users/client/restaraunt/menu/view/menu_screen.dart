@@ -88,6 +88,7 @@ class _MenuScreenState extends State<MenuScreen> {
               value: m.value,
               unit: m.unit,
               isDefault: true,
+              imageUrl: m.imageUrl,
             )
           ],
         );
@@ -120,6 +121,7 @@ class _MenuScreenState extends State<MenuScreen> {
             value: m.value,
             unit: m.unit,
             isDefault: m.name.contains('Стандарт'),
+            imageUrl: m.imageUrl,
           ),
         );
       }
@@ -291,6 +293,7 @@ class _MenuScreenState extends State<MenuScreen> {
           return Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: MenuTileCard(
+              key: ValueKey(item.variants.first.id),
               data: item,
               isNarrow: isNarrow,
               onTap: (variant) => _openProductModal(item, variant),
@@ -317,6 +320,7 @@ class _MenuScreenState extends State<MenuScreen> {
         (context, index) {
           final item = items[index];
           return MenuTileCard(
+            key: ValueKey(item.variants.first.id),
             data: item,
             isNarrow: isNarrow,
             onTap: (variant) => _openProductModal(item, variant),

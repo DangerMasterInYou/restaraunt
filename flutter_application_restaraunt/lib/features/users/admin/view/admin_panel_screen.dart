@@ -124,6 +124,13 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                   ),
                 ),
                 IconButton(
+                  icon: Icon(Icons.point_of_sale,
+                      color: theme.colorScheme.onSurface),
+                  tooltip: 'Кабинет оператора',
+                  onPressed: () =>
+                      context.router.push(const OperatorOrdersRoute()),
+                ),
+                IconButton(
                   icon: Icon(
                     Icons.logout,
                     color: theme.colorScheme.onSurface,
@@ -523,8 +530,12 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         .where((p) => (p.name as String).toLowerCase().contains(q));
   }
 
-  bool _isComboProduct(dynamic product) =>
-      product.variants.any((v) => v.isCombo == true);
+  // Продукт считается комбо только если ВСЕ его варианты комбо. Иначе обычный
+  // продукт с одним «комбо»-вариантом пропадал из раздела «Продукты».
+  bool _isComboProduct(dynamic product) {
+    final variants = product.variants as List;
+    return variants.isNotEmpty && variants.every((v) => v.isCombo == true);
+  }
 
   Widget _modifierThumb(dynamic item, double size) {
     final url = item.imageUrl as String?;

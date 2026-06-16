@@ -46,7 +46,7 @@ class AuthJWT(BaseModel):
     private_key_path: Path = BASE_DIR / "certs" / "jwt-private.pem"
     public_key_path: Path = BASE_DIR / "certs" / "jwt-public.pem"
     algorithm: str = "RS256"
-    access_token_expire_minutes: int = 300
+    access_token_expire_minutes: int = 43200  # 30 дней (30*24*60)
     refresh_token_expire_days: int = 30
     max_token_count: int
     verification_code_expire_minutes: int = 10
@@ -68,7 +68,7 @@ class YooKassaConfig(BaseModel):
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=(".env-template", ".env"),
+        env_file=(".env.template", ".env"),
         env_prefix="APP_CONFIG__",
         case_sensitive=False,
         env_nested_delimiter="__",

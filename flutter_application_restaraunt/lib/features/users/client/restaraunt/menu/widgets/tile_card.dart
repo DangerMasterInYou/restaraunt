@@ -24,13 +24,25 @@ class _MenuTileCardState extends State<MenuTileCard> {
   @override
   void initState() {
     super.initState();
+    _selected = _defaultVariant();
+  }
 
-    _selected = widget.data.variants.firstWhere(
-      (v) => v.isDefault,
-      orElse: () => widget.data.variants.reduce(
-        (a, b) => a.price <= b.price ? a : b,
-      ),
-    );
+  MenuItemVariant _defaultVariant() => widget.data.variants.firstWhere(
+        (v) => v.isDefault,
+        orElse: () => widget.data.variants.reduce(
+          (a, b) => a.price <= b.price ? a : b,
+        ),
+      );
+
+  @override
+  void didUpdateWidget(covariant MenuTileCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // При фильтрации список переиспользует State для другого продукта.
+    // Если ранее выбранного варианта нет среди новых, выбираем вариант
+    // по умолчанию, иначе ни один переключатель не оказывается выбранным.
+    if (!widget.data.variants.any((v) => v.id == _selected.id)) {
+      _selected = _defaultVariant();
+    }
   }
 
   bool get _hasVariants => widget.data.variants.length > 1;
@@ -42,8 +54,10 @@ class _MenuTileCardState extends State<MenuTileCard> {
 
   Widget _image(BuildContext context, double size) {
     final theme = Theme.of(context);
+    // У выбранного варианта может быть своё изображение; иначе - картинка блюда.
+    final url = _selected.fullImageUrl ?? widget.data.fullImageUrl;
     return Image.network(
-      widget.data.fullImageUrl,
+      url,
       width: size == double.infinity ? double.infinity : size,
       height: size == double.infinity ? null : size,
       fit: BoxFit.cover,

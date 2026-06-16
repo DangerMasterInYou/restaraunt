@@ -482,6 +482,16 @@ class _OperatorOrdersBodyState extends State<_OperatorOrdersBody> {
             onPressed: () => _showArchive(context),
           ),
           IconButton(
+            tooltip: 'Меню',
+            icon: const Icon(Icons.restaurant_menu),
+            onPressed: () => context.router.push(const MenuRoute()),
+          ),
+          IconButton(
+            tooltip: 'Админ-панель',
+            icon: const Icon(Icons.admin_panel_settings),
+            onPressed: () => context.router.push(const AdminPanelRoute()),
+          ),
+          IconButton(
             tooltip: 'Выйти',
             icon: const Icon(Icons.logout),
             onPressed: () => context.router.replace(const LoginRoute()),

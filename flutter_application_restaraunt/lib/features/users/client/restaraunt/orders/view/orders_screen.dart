@@ -117,7 +117,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
         appBar: AppBar(
           title: const Text('Мои заказы'),
         ),
-        body: Column(
+        body: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1400),
+            child: Column(
           children: [
             Padding(
               padding: const EdgeInsets.all(16),
@@ -266,6 +269,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
               ),
             ),
           ],
+        ),
+          ),
         ),
       ),
     );

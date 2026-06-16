@@ -76,6 +76,7 @@ class _ComboItemsDialogState extends State<ComboItemsDialog> {
     final available = widget.allVariants
         .where((v) =>
             v.id != widget.comboVariantId &&
+            !v.isCombo &&
             !_items.any((i) => i.includedVariant.id == v.id))
         .toList();
     if (available.isEmpty) return;
