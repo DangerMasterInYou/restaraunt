@@ -35,9 +35,9 @@ class ProductVariantResponse(BaseModel):
 class ProductVariantCreate(BaseModel):
     name: str
     description: Optional[str] = None
-    image_url: Optional[str] = (
-        "/static/images/placeholder_variant.png"
-    )
+    # По умолчанию у варианта нет своей картинки — в меню он наследует
+    # изображение продукта (image_url = variant.image_url or product.image_url).
+    image_url: Optional[str] = None
     price: int
     sku: str
     value: Optional[float] = None

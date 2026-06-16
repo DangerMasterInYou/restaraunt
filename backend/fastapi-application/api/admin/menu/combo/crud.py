@@ -17,11 +17,10 @@ async def add_item_to_combo(
 ) -> ComboBundle:
     """Добавляет один товар в состав комбо-набора."""
     try:
-        combo_variant = await get_variant(session, combo_variant_id)
-        if not combo_variant.is_combo:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST, "Этот продукт не является комбо-набором."
-            )
+        # combo_variant — вариант самого набора (контейнер). Набор определяется
+        # категорией «Комбо», поэтому флаг is_combo на нём не проверяем —
+        # достаточно, что вариант существует.
+        await get_variant(session, combo_variant_id)
 
         included_variant = await get_variant(session, item_data.included_variant_id)
         if included_variant.is_deleted or not included_variant.is_available:
@@ -30,10 +29,11 @@ async def add_item_to_combo(
                 "Нельзя добавить недоступный или удаленный товар в комбо.",
             )
 
-        if included_variant.is_combo:
+        # В состав комбо можно добавить только вариант, помеченный is_combo=true.
+        if not included_variant.is_combo:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
-                "Нельзя добавлять комбо-набор в другой комбо-набор.",
+                "Этот вариант недоступен для комбо: включите флаг is_combo.",
             )
 
         existing_item = await session.scalar(
@@ -102,11 +102,9 @@ async def get_combo_contents(
     combo_variant_id: int, session: AsyncSession
 ) -> List[ComboBundle]:
     """Получает полный состав комбо-набора."""
-    combo_variant = await get_variant(session, combo_variant_id)
-    if not combo_variant.is_combo:
-        raise HTTPException(
-            status.HTTP_400_BAD_REQUEST, "Этот продукт не является комбо-набором."
-        )
+    # Набор определяется категорией «Комбо», флаг is_combo на контейнере
+    # не проверяем — просто убеждаемся, что вариант существует.
+    await get_variant(session, combo_variant_id)
 
     stmt = (
         select(ComboBundle)

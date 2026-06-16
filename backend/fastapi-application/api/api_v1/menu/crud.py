@@ -6,6 +6,17 @@ from sqlalchemy.orm import joinedload, selectinload, with_loader_criteria
 from .schemas import FlatProductSchema
 from core.models import Product, ProductVariant, ModifierGroup, Category, Modifier
 
+# Старый дефолт картинки варианта указывал на несуществующий файл — считаем его
+# «нет своей картинки», чтобы вариант наследовал изображение продукта.
+_VARIANT_PLACEHOLDER = "/static/images/placeholder_variant.png"
+
+
+def _variant_image(variant_image_url, product_image_url):
+    if not variant_image_url or variant_image_url == _VARIANT_PLACEHOLDER:
+        return product_image_url
+    return variant_image_url
+
+
 async def get_products(session: AsyncSession) -> List[FlatProductSchema]:
     results = await session.scalars(
         select(Category)
@@ -41,7 +52,7 @@ async def get_products(session: AsyncSession) -> List[FlatProductSchema]:
                 if variant.description:
                     full_description = f"{full_description}\n{variant.description}"
 
-                image_url = variant.image_url or product.image_url
+                image_url = _variant_image(variant.image_url, product.image_url)
 
                 flat_item = FlatProductSchema(
                     id=variant.id,
@@ -110,7 +121,7 @@ async def get_product_by_id(
         else:
             full_description = product_variant.description
 
-    image_url = product_variant.image_url or product.image_url
+    image_url = _variant_image(product_variant.image_url, product.image_url)
 
     return FlatProductSchema(
         id=product_variant.id,
